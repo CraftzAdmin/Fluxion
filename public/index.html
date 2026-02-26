@@ -1,1 +1,231 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fluxion</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background:#0b1020; color:#e8ecff; }
+    header { padding: 18px 20px; border-bottom: 1px solid rgba(255,255,255,.08); display:flex; gap:12px; align-items:center; justify-content:space-between; }
+    .brand { display:flex; gap:10px; align-items:baseline; }
+    .brand h1 { margin:0; font-size:18px; letter-spacing:.4px; }
+    .brand .sub { opacity:.75; font-size:12px; }
+    .pill { font-size:12px; padding:6px 10px; border:1px solid rgba(255,255,255,.12); border-radius:999px; background:rgba(255,255,255,.04); }
+    main { padding: 18px 20px; max-width: 1100px; margin: 0 auto; }
+    .grid { display:grid; gap:14px; }
+    @media (min-width: 900px) { .grid { grid-template-columns: 1.1fr .9fr; } }
+    .card { border:1px solid rgba(255,255,255,.10); background:rgba(255,255,255,.03); border-radius:14px; padding:14px; }
+    .card h2 { margin:0 0 10px; font-size:14px; opacity:.9; letter-spacing:.3px; }
+    .metrics { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:10px; }
+    @media (max-width: 520px) { .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .metric { border:1px solid rgba(255,255,255,.10); background:rgba(255,255,255,.02); border-radius:12px; padding:10px; }
+    .metric .k { font-size:11px; opacity:.75; }
+    .metric .v { font-size:22px; font-weight:650; margin-top:2px; }
+    .metric .u { font-size:11px; opacity:.7; margin-left:4px; }
+    table { width:100%; border-collapse:collapse; font-size:12px; }
+    th, td { text-align:left; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.08); }
+    th { opacity:.75; font-weight:600; }
+    .status { font-weight:650; }
+    .OK { color:#69ffb7; }
+    .STALE { color:#ffd36a; }
+    .MISSING, .UNAVAILABLE { color:#ff7a7a; }
+    ul { margin: 8px 0 0; padding-left: 18px; }
+    li { margin: 6px 0; opacity:.92; }
+    .muted { opacity:.75; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; }
+    a { color:#9fb7ff; text-decoration:none; }
+    a:hover { text-decoration:underline; }
+    .err { white-space:pre-wrap; color:#ff7a7a; }
+    footer { padding: 18px 20px; border-top:1px solid rgba(255,255,255,.08); opacity:.7; font-size:12px; }
+    button { cursor:pointer; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.05); color:#e8ecff; padding:8px 10px; border-radius:10px; font-size:12px; }
+    button:hover { background:rgba(255,255,255,.08); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <h1>Fluxion</h1>
+      <div class="sub">Space weather pressure • V1.1</div>
+    </div>
+    <div class="row">
+      <div id="snapshotPill" class="pill">Snapshot: —</div>
+      <button id="reloadBtn" type="button">Reload</button>
+    </div>
+  </header>
 
+  <main class="grid">
+    <section class="card">
+      <h2>Now</h2>
+      <div class="metrics">
+        <div class="metric"><div class="k">Pressure</div><div class="v" id="mPressure">—</div></div>
+        <div class="metric"><div class="k">Turbulence</div><div class="v" id="mTurbulence">—</div></div>
+        <div class="metric"><div class="k">Volatility</div><div class="v" id="mVolatility">—</div></div>
+        <div class="metric"><div class="k">Entropy</div><div class="v" id="mEntropy">—</div></div>
+        <div class="metric"><div class="k">Confidence</div><div class="v" id="mConfidence">—</div></div>
+        <div class="metric"><div class="k">Radiation</div><div class="v" id="mRadiation">—</div></div>
+      </div>
+
+      <div style="height:12px"></div>
+
+      <div class="card" style="padding:12px">
+        <h2 style="margin-bottom:6px">Explain</h2>
+        <div class="muted" style="font-size:12px">Global</div>
+        <ul id="exGlobal"></ul>
+        <div class="muted" style="font-size:12px; margin-top:10px">Data quality</div>
+        <ul id="exQuality"></ul>
+      </div>
+
+      <div style="height:12px"></div>
+
+      <div class="card" style="padding:12px">
+        <h2 style="margin-bottom:6px">Forecast</h2>
+        <div id="forecastBox" class="muted" style="font-size:12px">—</div>
+      </div>
+
+      <div id="errorBox" class="err" style="display:none; margin-top:12px"></div>
+    </section>
+
+    <aside class="card">
+      <h2>Sources</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Source</th>
+            <th>Status</th>
+            <th>Age (min)</th>
+            <th>Timestamp</th>
+          </tr>
+        </thead>
+        <tbody id="sourcesTable"></tbody>
+      </table>
+
+      <div style="height:12px"></div>
+
+      <div class="card" style="padding:12px">
+        <h2 style="margin-bottom:6px">Raw values</h2>
+        <div class="muted" style="font-size:12px">
+          kp: <span id="vKp">—</span> · xray: <span id="vXray">—</span> · f107: <span id="vF107">—</span> · dst: <span id="vDst">—</span> · kp_pred_est: <span id="vKpPred">—</span>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <footer>
+    Local mode. The site reads only static JSON from <code>public/data</code>.
+  </footer>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    function fmtNum(x, d=1) {
+      if (x === null || x === undefined || Number.isNaN(x)) return "—";
+      return Number(x).toFixed(d);
+    }
+
+    function setList(ul, items) {
+      ul.innerHTML = "";
+      (items || []).forEach(t => {
+        const li = document.createElement("li");
+        li.textContent = t;
+        ul.appendChild(li);
+      });
+      if (!items || items.length === 0) {
+        const li = document.createElement("li");
+        li.textContent = "—";
+        li.className = "muted";
+        ul.appendChild(li);
+      }
+    }
+
+    function renderSources(sources) {
+      const tbody = $("sourcesTable");
+      tbody.innerHTML = "";
+      for (const [name, s] of Object.entries(sources || {})) {
+        const tr = document.createElement("tr");
+        const status = s?.status ?? "—";
+        tr.innerHTML = `
+          <td>${name}${s?.url ? ` <span class="muted">(<a href="${s.url}" target="_blank" rel="noreferrer">link</a>)</span>` : ""}</td>
+          <td class="status ${status}">${status}</td>
+          <td>${s?.age_min ?? "—"}</td>
+          <td class="muted">${s?.ts ?? "—"}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    function renderForecast(forecast) {
+      const windows = forecast?.front_arrival_windows || [];
+      const notes = forecast?.notes || [];
+      if (windows.length === 0 && notes.length === 0) {
+        $("forecastBox").textContent = "—";
+        return;
+      }
+      const lines = [];
+      windows.forEach(w => {
+        lines.push(`Front window: ${w.start} → ${w.end} | severity=${fmtNum(w.severity_0_100, 0)} | driver=${w.driver || "—"}`);
+      });
+      notes.forEach(n => lines.push(`Note: ${n}`));
+      $("forecastBox").innerHTML = lines.map(x => `<div>${x}</div>`).join("");
+    }
+
+    function showError(msg) {
+      const box = $("errorBox");
+      box.style.display = "block";
+      box.textContent = msg;
+    }
+
+    function clearError() {
+      const box = $("errorBox");
+      box.style.display = "none";
+      box.textContent = "";
+    }
+
+    async function loadLatest() {
+      clearError();
+      const url = "./data/latest.json?ts=" + Date.now(); // cache-bust for local
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`HTTP ${r.status} loading latest.json`);
+      return r.json();
+    }
+
+    function render(j) {
+      $("snapshotPill").textContent = `Snapshot: ${j?.snapshot_ts_utc || "—"}`;
+
+      const idx = j?.indices || {};
+      $("mPressure").textContent   = fmtNum(idx.pressure_global_0_100, 1);
+      $("mTurbulence").textContent = fmtNum(idx.turbulence_0_100, 1);
+      $("mVolatility").textContent = fmtNum(idx.volatility_0_100, 1);
+      $("mEntropy").textContent    = fmtNum(idx.entropy_0_100, 1);
+      $("mConfidence").textContent = fmtNum(idx.confidence_0_100, 1);
+      $("mRadiation").textContent  = fmtNum(idx.radiation_pressure_0_100, 1);
+
+      const values = j?.values || {};
+      $("vKp").textContent = values.kp ?? "—";
+      $("vXray").textContent = values.xray_wm2 ?? "—";
+      $("vF107").textContent = values.f107 ?? "—";
+      $("vDst").textContent = values.dst ?? "—";
+      $("vKpPred").textContent = values.kp_pred_est ?? "—";
+
+      setList($("exGlobal"), j?.explain?.global);
+      setList($("exQuality"), j?.explain?.data_quality);
+
+      renderForecast(j?.forecast);
+      renderSources(j?.sources);
+    }
+
+    async function refresh() {
+      try {
+        const j = await loadLatest();
+        render(j);
+      } catch (e) {
+        showError(String(e));
+      }
+    }
+
+    $("reloadBtn").addEventListener("click", refresh);
+    refresh();
+    setInterval(refresh, 60000);
+  </script>
+</body>
+</html>
